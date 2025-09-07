@@ -62,6 +62,8 @@ The `kustomization.yaml` file is the core of Kustomize's configuration managemen
 - A list of Kubernetes manifests to manage.
 - Customizations to apply (e.g., overriding replicas, adding labels).
 
+It includes `apiVersion` (e.g., `kustomize.config.k8s.io/v1beta1`) and `kind: Kustomization`.
+
 Example `kustomization.yaml` in the base directory:
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -106,12 +108,84 @@ spec:
   ```bash
   kustomize build k8s/overlays/dev | kubectl apply -f -
   ```
+  Alternatively, use native `kubectl` support:
+  ```bash
+  kubectl apply -k k8s/overlays/dev
+  ```
+
+- **Delete Resources**:
+  Pipe the output to `kubectl delete` to remove resources:
+  ```bash
+  kustomize build k8s/overlays/dev | kubectl delete -f -
+  ```
+  Or use native `kubectl`:
+  ```bash
+  kubectl delete -k k8s/overlays/dev
+  ```
 
 ### How It Works
 1. The `kustomization.yaml` file in the base directory lists all manifests (e.g., `deployment.yaml`, `service.yaml`).
 2. Overlays reference the base directory and specify customizations (e.g., changing replicas or adding resources).
 3. The `kustomize build` command combines the base manifests with overlay customizations, applying transformations like `commonLabels` or `patchesStrategicMerge`.
 4. The output is a valid Kubernetes manifest that can be applied using `kubectl`.
+
+## Managing Directories with Kustomize
+
+For larger projects with multiple components (e.g., API and database), you can organize manifests into subdirectories under a root directory like `k8s/`.
+
+Without Kustomize, you'd apply each subdirectory separately:
+```bash
+kubectl apply -f k8s/api/
+kubectl apply -f k8s/db/
+```
+
+With Kustomize:
+- Place a `kustomization.yaml` in the root `k8s/` directory:
+  ```yaml
+  apiVersion: kustomize.config.k8s.io/v1beta1
+  kind: Kustomization
+  resources:
+    - api/api-depl.yaml
+    - api/api-service.yaml
+    - db/db-depl.yaml
+    - db/db-service.yaml
+  ```
+- Apply from the root:
+  ```bash
+  kustomize build k8s/ | kubectl apply -f -
+  ```
+  Or natively:
+  ```bash
+  kubectl apply -k k8s/
+  ```
+
+As the number of subdirectories grows (e.g., adding cache and Kafka), the root `kustomization.yaml` can become lengthy. To scale:
+- Add a `kustomization.yaml` in each subdirectory (e.g., `api/kustomization.yaml`):
+  ```yaml
+  apiVersion: kustomize.config.k8s.io/v1beta1
+  kind: Kustomization
+  resources:
+    - api-depl.yaml
+    - api-service.yaml
+  ```
+- Update the root `kustomization.yaml` to reference subdirectories:
+  ```yaml
+  apiVersion: kustomize.config.k8s.io/v1beta1
+  kind: Kustomization
+  resources:
+    - api/
+    - db/
+    - cache/
+    - kafka/
+  ```
+- Apply as before:
+  ```bash
+  kustomize build k8s/ | kubectl apply -f -
+  ```
+  Or:
+  ```bash
+  kubectl apply -k k8s/
+  ```
 
 ## Example Directory Structure
 ```
