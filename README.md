@@ -95,6 +95,34 @@ spec:
   replicas: 1
 ```
 
+### Common Transformers
+Common configurations, such as labels (e.g., `org: kodekloud`), are often applied across multiple YAML files (e.g., `deployment.yaml` and `service.yaml`). Manually editing each file is inefficient, time-consuming, and error-prone, especially with many resources.
+
+Kustomize provides **common transformers** to apply changes uniformly across all resources defined in the `kustomization.yaml` file. These include:
+
+- **commonLabels**: Adds labels to all Kubernetes resources.
+- **namePrefix** / **nameSuffix**: Adds a prefix or suffix to all resource names.
+- **namespace**: Adds a common namespace to all resources.
+- **commonAnnotations**: Adds annotations to all resources.
+
+Example in `kustomization.yaml`:
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - service.yaml
+commonLabels:
+  org: kodekloud
+  env: dev
+namePrefix: my-app-
+namespace: default
+commonAnnotations:
+  managed-by: kustomize
+```
+
+This applies the labels, prefix, namespace, and annotations to all listed resources during the build process.
+
 ### Key Commands
 - **Build Manifests**:
   Generate the final manifests by combining the base and overlay configurations:
