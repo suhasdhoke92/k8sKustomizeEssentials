@@ -123,6 +123,27 @@ commonAnnotations:
 
 This applies the labels, prefix, namespace, and annotations to all listed resources during the build process.
 
+### Image Transformer
+Kustomize's image transformer allows you to customize container images in your manifests without editing the base files. You can override the image name (`newName`), tag (`newTag`), or combine both.
+
+Example in `kustomization.yaml`:
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+images:
+  - name: old-image
+    newName: new-repo/new-image
+    newTag: v1.2.3
+```
+
+- **newName**: Replaces the image name (e.g., change repository or registry).
+- **newTag**: Updates the image tag (e.g., for versioning).
+- **Combination**: Use both `newName` and `newTag` together for full image overrides.
+
+This transformer scans all container images in the resources and applies the specified changes during the build.
+
 ### Key Commands
 - **Build Manifests**:
   Generate the final manifests by combining the base and overlay configurations:
@@ -173,67 +194,4 @@ With Kustomize:
   apiVersion: kustomize.config.k8s.io/v1beta1
   kind: Kustomization
   resources:
-    - api/api-depl.yaml
-    - api/api-service.yaml
-    - db/db-depl.yaml
-    - db/db-service.yaml
-  ```
-- Apply from the root:
-  ```bash
-  kustomize build k8s/ | kubectl apply -f -
-  ```
-  Or natively:
-  ```bash
-  kubectl apply -k k8s/
-  ```
-
-As the number of subdirectories grows (e.g., adding cache and Kafka), the root `kustomization.yaml` can become lengthy. To scale:
-- Add a `kustomization.yaml` in each subdirectory (e.g., `api/kustomization.yaml`):
-  ```yaml
-  apiVersion: kustomize.config.k8s.io/v1beta1
-  kind: Kustomization
-  resources:
-    - api-depl.yaml
-    - api-service.yaml
-  ```
-- Update the root `kustomization.yaml` to reference subdirectories:
-  ```yaml
-  apiVersion: kustomize.config.k8s.io/v1beta1
-  kind: Kustomization
-  resources:
-    - api/
-    - db/
-    - cache/
-    - kafka/
-  ```
-- Apply as before:
-  ```bash
-  kustomize build k8s/ | kubectl apply -f -
-  ```
-  Or:
-  ```bash
-  kubectl apply -k k8s/
-  ```
-
-## Example Directory Structure
-```
-k8s/
-├── base/
-│   ├── deployment.yaml
-│   ├── service.yaml
-│   └── kustomization.yaml
-└── overlays/
-    ├── dev/
-    │   ├── patch.yaml
-    │   └── kustomization.yaml
-    ├── staging/
-    │   ├── patch.yaml
-    │   └── kustomization.yaml
-    └── prod/
-        ├── patch.yaml
-        └── kustomization.yaml
-```
-
-## Conclusion
-
-Kustomize provides a simple, YAML-based approach to managing Kubernetes configurations across multiple environments. By using a base configuration and environment-specific overlays, it eliminates the need for duplicated manifests, making it scalable and easy to maintain. Compared to Helm, Kustomize is lightweight and focuses solely on configuration customization, leveraging plain YAML for readability and simplicity. As a built-in Kubernetes feature, it’s an excellent choice for teams seeking a straightforward solution for managing manifests.
+    - api/api
