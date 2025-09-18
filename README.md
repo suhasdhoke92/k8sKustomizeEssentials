@@ -144,6 +144,48 @@ images:
 
 This transformer scans all container images in the resources and applies the specified changes during the build.
 
+### Kustomize Patches
+Unlike common transformers, patches provide a more "surgical" approach to targeting one or more specific sections in Kubernetes resources.
+
+Patches require three parameters:
+- **Operation Type**: `add`, `remove`, or `replace`.
+- **Target**: Specifies the resource to apply the patch to, including `kind`, `version/group`, `name`, `namespace`, `labelSelector`, or `annotationSelector`.
+- **Value**: The value to replace or add (required only for `add` or `replace` operations).
+
+There are two main patch methods:
+- **JSON 6902 Patch**: Uses a list of operations in JSON format.
+- **Strategic Merge Patch**: Uses regular Kubernetes YAML configuration for merging.
+
+#### Types of Patches
+1. **Inline**: Defined directly in the same `kustomization.yaml` file.
+2. **Separate File**: Created in a separate file (e.g., `patch.yaml`) and referenced in the `patches` section of `kustomization.yaml`.
+
+Example of an inline JSON 6902 patch in `kustomization.yaml`:
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+patches:
+  - target:
+      kind: Deployment
+      name: api-deployment
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: web-deployment
+```
+
+#### Patching Dictionaries
+- **Replace Dictionary** (JSON 6902): Specify the operation to replace a key-value pair.
+- **Using Strategic Merge Patch**: Copy the relevant section from the original config (e.g., `deployment.yaml`) to `patch.yaml` and update the value.
+- **Add Dictionary** (JSON 6902): Use `add` operation to insert a new key-value pair.
+- **Add Using Strategic Merge Patch**: Add the new entry in the patch YAML.
+- **Remove**: Set the value to `null` (e.g., `org: null`).
+
+#### Patching Lists
+To update specific items in a list, mention the index (e.g., `0`, `1`, or `-` for the last item). Strategic merge patches simplify this by allowing you to copy and modify the relevant YAML section in `patch.yaml`.
+
 ### Key Commands
 - **Build Manifests**:
   Generate the final manifests by combining the base and overlay configurations:
@@ -194,4 +236,67 @@ With Kustomize:
   apiVersion: kustomize.config.k8s.io/v1beta1
   kind: Kustomization
   resources:
-    - api/api
+    - api/api-depl.yaml
+    - api/api-service.yaml
+    - db/db-depl.yaml
+    - db/db-service.yaml
+  ```
+- Apply from the root:
+  ```bash
+  kustomize build k8s/ | kubectl apply -f -
+  ```
+  Or natively:
+  ```bash
+  kubectl apply -k k8s/
+  ```
+
+As the number of subdirectories grows (e.g., adding cache and Kafka), the root `kustomization.yaml` can become lengthy. To scale:
+- Add a `kustomization.yaml` in each subdirectory (e.g., `api/kustomization.yaml`):
+  ```yaml
+  apiVersion: kustomize.config.k8s.io/v1beta1
+  kind: Kustomization
+  resources:
+    - api-depl.yaml
+    - api-service.yaml
+  ```
+- Update the root `kustomization.yaml` to reference subdirectories:
+  ```yaml
+  apiVersion: kustomize.config.k8s.io/v1beta1
+  kind: Kustomization
+  resources:
+    - api/
+    - db/
+    - cache/
+    - kafka/
+  ```
+- Apply as before:
+  ```bash
+  kustomize build k8s/ | kubectl apply -f -
+  ```
+  Or:
+  ```bash
+  kubectl apply -k k8s/
+  ```
+
+## Example Directory Structure
+```
+k8s/
+├── base/
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   └── kustomization.yaml
+└── overlays/
+    ├── dev/
+    │   ├── patch.yaml
+    │   └── kustomization.yaml
+    ├── staging/
+    │   ├── patch.yaml
+    │   └── kustomization.yaml
+    └── prod/
+        ├── patch.yaml
+        └── kustomization.yaml
+```
+
+## Conclusion
+
+Kustomize provides a simple, YAML-based approach to managing Kubernetes configurations across multiple environments. By using a base configuration and environment-specific overlays, it eliminates the need for duplicated manifests, making it scalable and easy to maintain. Compared to Helm, Kustomize is lightweight and focuses solely on configuration customization, leveraging plain YAML for readability and simplicity. As a built-in Kubernetes feature, it’s an excellent choice for teams seeking a straightforward solution for managing manifests.
