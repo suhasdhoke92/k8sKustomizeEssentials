@@ -278,6 +278,51 @@ As the number of subdirectories grows (e.g., adding cache and Kafka), the root `
   kubectl apply -k k8s/
   ```
 
+## Overlays and Components
+
+### Overlays
+One of the main uses of Kustomize is to define a shared base configuration in a `base` directory under the `k8s/` folder, which contains default manifests. Environment-specific configurations (e.g., dev, staging, prod) are then defined in an `overlays` folder, where each environment adds or modifies the base configs.
+
+- Create a `kustomization.yaml` file in each environment directory (e.g., `overlays/dev/kustomization.yaml`).
+- Reference the base directory using a relative path:
+  ```yaml
+  apiVersion: kustomize.config.k8s.io/v1beta1
+  kind: Kustomization
+  bases:
+    - ../../base
+  ```
+- Add patches to update configurations (e.g., via `patchesStrategicMerge` or other transformers).
+- Include new resources not defined in the base (e.g., add `grafana-depl.yaml` in `overlays/prod/` and reference it in `kustomization.yaml`):
+  ```yaml
+  resources:
+    - grafana-depl.yaml
+  ```
+
+This structure allows for modular, environment-specific customizations without duplicating the base manifests.
+
+### Components
+Components provide the ability to define reusable pieces of configuration logic (resources + patches) that can be included in multiple overlays. They are useful when applications support optional features that need to be enabled only in a subset of environments.
+
+For example:
+- Caching might be needed in "premium" and "self-hosted" environments.
+- An external DB could be required in "db" and "premium" environments.
+
+Components are reusable blocks of code that can be applied to several overlays. They are isolated in a separate `components/` folder.
+
+- Use `apiVersion: kustomize.config.k8s.io/v1alpha1` and `kind: Component` (different from standard `Kustomization`).
+- In an overlay's `kustomization.yaml`, reference the base and components:
+  ```yaml
+  apiVersion: kustomize.config.k8s.io/v1beta1
+  kind: Kustomization
+  bases:
+    - ../../base
+  components:
+    - ../../components/caching
+    - ../../components/external-db
+  ```
+
+This enables modular reuse of configurations across different overlays.
+
 ## Example Directory Structure
 ```
 k8s/
@@ -294,6 +339,7 @@ k8s/
     │   └── kustomization.yaml
     └── prod/
         ├── patch.yaml
+        ├── grafana-depl.yaml
         └── kustomization.yaml
 ```
 
